@@ -1,90 +1,149 @@
-let rectWidth = 100;
-let rectHeight = 100;
+const RATIO = 2000 / 2851;
 
-let innerImage; // Variable para almacenar nuestra imagen PNG
 
-let innerImageWidth = 80; // Ancho deseado de la imagen
-let innerImageHeight = 60; // Alto deseado de la imagen
+const paletas = [
+  { fondo: [35,55,90]  },
+  { fondo: [55,75,110] },
+  { fondo: [20,40,70]  },
+];
 
-// Variables para la posición ACTUAL del CENTRO de la imagen interior
-let currentInnerX;
-let currentInnerY;
 
-// Factor de suavizado (cuanto más cerca de 0, más lento, más cerca de 1, más rápido)
-let easing = 0.05;
+let capasFijas = [];
+let capasMoviles = [];
+let capasVisibles = 0;
+let totalCapas = 0;
+let timer = 0;
+let paletaIdx = 0;
+let escalaExtra = 0;
+let estado = 0;
 
-// Variable para el nivel de transparencia (0 es totalmente transparente, 255 es totalmente opaco)
-let transparency = 150; // Por ejemplo, 150 para una transparencia media
+
+let cx, cy, cvx, cvy, cw, ch;
+let centralMoviendo = false;
+
 
 function preload() {
-  innerImage = loadImage('assets/ovalo.png'); // ¡Asegúrate de usar el nombre correcto de tu archivo!
+  capasFijas = [
+    loadImage('data/fondo (1).png'),
+    loadImage('data/costados.png'),
+    loadImage('data/esquinaA.png'),
+    loadImage('data/esquinaB.png'),
+    loadImage('data/esquinaC.png'),
+    loadImage('data/esquinaD.png'),
+  ];
+  capasMoviles = [
+    loadImage('data/cuadradoA.png'),
+    loadImage('data/cuadradoB.png'),
+    loadImage('data/cuadradoC.png'),
+    loadImage('data/cuadradoD.png'),
+    loadImage('data/AzulFondo.png'),
+    loadImage('data/AmarilloA.png'),
+    loadImage('data/AmarilloB.png'),
+    loadImage('data/AmarilloC.png'),
+    loadImage('data/AmarilloD.png'),
+    loadImage('data/Marron.png'),
+    loadImage('data/CirculoA.png'),
+    loadImage('data/CirculoB.png'),
+    loadImage('data/CirculoFondo.png'),
+  ];
+  totalCapas = capasFijas.length + capasMoviles.length;
 }
+
 
 function setup() {
-  createCanvas(600, 400);
-  imageMode(CENTER); // Dibujar las imágenes desde su centro
-  rectMode(CORNER); // Asegurarse de que el rectángulo se dibuje desde la esquina
-
-  // Inicializar la posición de la imagen interior al centro del canvas o al centro del primer rectángulo
-  currentInnerX = width / 2;
-  currentInnerY = height / 2;
+  let h = min(windowHeight, 750);
+  let w = min(floor(h * RATIO), windowWidth);
+  let cnv = createCanvas(w, h);
+  cnv.elt.setAttribute('tabindex', '0');
+  cnv.elt.focus();
+  iniciarCentral();
 }
+
+
+function iniciarCentral() {
+  cw = width;
+  ch = height;
+  cx = width / 2;
+  cy = height / 2;
+  cvx = random(0.8, 1.5) * (random() > 0.5 ? 1 : -1);
+  cvy = random(0.8, 1.5) * (random() > 0.5 ? 1 : -1);
+}
+
 
 function draw() {
-  background(220);
+  let p = paletas[paletaIdx];
+  background(p.fondo[0], p.fondo[1], p.fondo[2]);
 
-  // Calcula la posición del rectángulo centrada en el ratón
-  // (rectX, rectY es la esquina superior izquierda del rectángulo)
-  let rectX = mouseX - rectWidth / 2;
-  let rectY = mouseY - rectHeight / 2;
 
-  // Asegura que el rectángulo no salga de los bordes del canvas
-  rectX = constrain(rectX, 0, width - rectWidth);
-  rectY = constrain(rectY, 0, height - rectHeight);
+  let fijasMostrar  = min(capasVisibles, capasFijas.length);
+  let movilesMostrar = max(0, capasVisibles - capasFijas.length);
 
-  // Dibujar el rectángulo
-  fill(255, 0, 0); // Rojo
-  rect(rectX, rectY, rectWidth, rectHeight);
 
-  // --- Movimiento y límites de la imagen interior ---
-
-  // 1. Calcular la posición ideal del CENTRO de la imagen interior basada en el ratón
-  let targetInnerX = mouseX;
-  let targetInnerY = mouseY;
-
-  // 2. Calcular los límites REALES para el CENTRO de la imagen interior
-  //    para que NINGUNA parte de la imagen se salga del rectángulo.
-  let minAllowedInnerX_center = rectX + innerImageWidth / 2;
-  let maxAllowedInnerX_center = rectX + rectWidth - innerImageWidth / 2;
-  let minAllowedInnerY_center = rectY + innerImageHeight / 2;
-  let maxAllowedInnerY_center = rectY + rectHeight - innerImageHeight / 2;
-
-  // Asegurarnos de que el ancho/alto de la imagen no es mayor que el del rectángulo
-  if (innerImageWidth > rectWidth) {
-      minAllowedInnerX_center = rectX + rectWidth / 2;
-      maxAllowedInnerX_center = rectX + rectWidth / 2; // Se centrará
-  }
-  if (innerImageHeight > rectHeight) {
-      minAllowedInnerY_center = rectY + rectHeight / 2;
-      maxAllowedInnerY_center = rectY + rectHeight / 2; // Se centrará
+  // capas fijas: siempre en (0,0), tamaño original
+  for (let i = 0; i < fijasMostrar; i++) {
+    image(capasFijas[i], 0, 0, width, height);
   }
 
-  // 3. Constreñir la posición ideal del ratón a estos nuevos límites para el CENTRO de la imagen
-  let constrainedTargetX = constrain(targetInnerX, minAllowedInnerX_center, maxAllowedInnerX_center);
-  let constrainedTargetY = constrain(targetInnerY, minAllowedInnerY_center, maxAllowedInnerY_center);
 
-  // 4. Mover gradualmente la posición actual de la imagen hacia la posición objetivo constreñida
-  currentInnerX = lerp(currentInnerX, constrainedTargetX, easing);
-  currentInnerY = lerp(currentInnerY, constrainedTargetY, easing);
+  // capas móviles: posición y tamaño afectados por escala
+  for (let i = 0; i < movilesMostrar; i++) {
+    image(capasMoviles[i], cx - cw/2, cy - ch/2, cw, ch);
+  }
 
-  // --- Aplicar transparencia con tint() ---
-  tint(255, transparency); // Aplica un tinte blanco con el nivel de transparencia deseado
 
-  // Dibujar la imagen interior en su posición actual
-  image(innerImage, currentInnerX, currentInnerY, innerImageWidth, innerImageHeight);
+  if (estado === 1 && capasVisibles < totalCapas) {
+    timer++;
+    if (timer > 45) { capasVisibles++; timer = 0; }
+  }
 
-  // --- Restablecer el tinte ---
-  // Es importante llamar a noTint() después de dibujar la imagen si no quieres que
-  // otros elementos gráficos (o futuras llamadas a image) también se vean afectados.
-  noTint();
+
+  if (centralMoviendo) {
+    cx += cvx;  cy += cvy;
+    if (cx < cw/2 || cx > width  - cw/2) cvx *= -1;
+    if (cy < ch/2 || cy > height - ch/2) cvy *= -1;
+  }
 }
+
+
+function keyPressed() {
+  if (key === '1' || keyCode === ENTER || keyCode === 32) {
+    if (estado === 0) { estado = 1; capasVisibles = 1; }
+  }
+  if (key === '2') {
+    paletaIdx = (paletaIdx + 1) % paletas.length;
+  }
+  if (key === '3') {
+    escalaExtra = min(escalaExtra + 1, 4);
+    cw = width  * (1 + escalaExtra * 0.04);
+    ch = height * (1 + escalaExtra * 0.04);
+  }
+  if (key === '4') {
+    escalaExtra = max(escalaExtra - 1, -3);
+    cw = width  * (1 + escalaExtra * 0.04);
+    ch = height * (1 + escalaExtra * 0.04);
+    cx = lerp(cx, width / 2, 0.3);
+    cy = lerp(cy, height / 2, 0.3);
+  }
+  if (key === '5') {
+    centralMoviendo = !centralMoviendo;
+  }
+  if (key === 'r' || key === 'R') {
+    estado = 0;
+    capasVisibles = 0;
+    centralMoviendo = false;
+    paletaIdx = 0;
+    escalaExtra = 0;
+    timer = 0;
+    iniciarCentral();
+  }
+  return false;
+}
+
+
+function windowResized() {
+  let h = min(windowHeight, 750);
+  let w = min(floor(h * RATIO), windowWidth);
+  resizeCanvas(w, h);
+  iniciarCentral();
+}
+
