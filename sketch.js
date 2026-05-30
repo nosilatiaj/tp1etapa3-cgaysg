@@ -24,7 +24,7 @@ let centralMoviendo = false;
 
 function preload() {
   capasFijas = [
-    loadImage('data/fondo (1).png'),
+    loadImage('data/fondo.png'),
     loadImage('data/costados.png'),
     loadImage('data/esquinaA.png'),
     loadImage('data/esquinaB.png'),
