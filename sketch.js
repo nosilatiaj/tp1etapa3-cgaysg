@@ -117,6 +117,7 @@ function preload() {
 }
 
 function setup() {
+  console.log("--- DIAGNÓSTICO: ENTRANDO A SETUP ---"); 
   let h   = min(windowHeight, 750);
   let w   = min(floor(h * RATIO), windowWidth);
   let cnv = createCanvas(w, h);
@@ -124,6 +125,7 @@ function setup() {
   cnv.elt.focus();
 
   mic       = new p5.AudioIn();
+  console.log("--- DIAGNÓSTICO: MIC CREADO:", mic);
   gestorAmp = new GestorSenial(AMP_MIN, AMP_MAX);
 
   let targetW = 700;
