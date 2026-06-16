@@ -1,4 +1,4 @@
-# TP1 - Etapa 3: Análisis Formal y Estético
+# TP1 - Etapa 3: 
 **Estudiantes:** Azul Irupé Ibañez Presa, Luz Rodríguez Calderón, Catalina Victoria Morel
 
 Este proyecto consiste en la reinterpretación digital e interactiva de la obra *Farfalla* de Emilio Pettoruti (etapa de madurez). A partir del análisis de su abstracción geométrica, paleta cromática y dinamismo, se propone un sistema visual interactivo donde las formas transitan entre la estabilidad y el movimiento.
