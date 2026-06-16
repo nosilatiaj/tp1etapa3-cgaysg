@@ -106,8 +106,8 @@ function preload() {
   imgFondoAzul   = loadImage('data/FondoAzul.png');
   imgFondoMarron = loadImage('data/FondoMarron.png');
   imgCuadrados = [
-    loadImage('data/CuadradoA.png'), loadImage('data/CuadradoB.png'),
-    loadImage('data/CuadradoC.png'), loadImage('data/CuadradoD.png'),
+    loadImage('data/cuadradoA.png'), loadImage('data/cuadradoB.png'),
+    loadImage('data/cuadradoC.png'), loadImage('data/cuadradoD.png'),
   ];
   imgAmarillos = [
     loadImage('data/AmarilloA.png'), loadImage('data/AmarilloB.png'),
