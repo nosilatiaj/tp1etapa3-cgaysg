@@ -7,6 +7,6 @@ Este proyecto consiste en la reinterpretación digital e interactiva de la obra 
 
 El diseño de las transformaciones interactivas se basa en los siguientes principios de la obra original:
 
-*   **Organización geométrica:** Relación constructiva entre formas rectangulares, curvas y circulares.
-*   **Contraste cromático:** Paleta de tonos fríos (azules, grises, verdes) con acentos cálidos (amarillos, ocres, naranjas) para generar vibración visual.
-*   **Dinamismo y profundidad:** Superposición de planos que simulan un estado de transformación constante, en equilibrio entre la estabilidad y el movimiento.
+-   **Organización geométrica:** Relación constructiva entre formas rectangulares, curvas y circulares.
+-   **Contraste cromático:** Paleta de tonos fríos (azules, grises, verdes) con acentos cálidos (amarillos, ocres, naranjas) para generar vibración visual.
+-   **Dinamismo y profundidad:** Superposición de planos que simulan un estado de transformación constante, en equilibrio entre la estabilidad y el movimiento.
