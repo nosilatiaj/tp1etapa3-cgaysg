@@ -45,21 +45,29 @@ const paletasGraves = [
   // Paleta extraída de una obra de referencia de Pettoruti (violetas, celeste
   // acero, negro y verde menta) — le da a veces autenticidad real al estado grave.
   [ [80,50,95],   [110,148,162],[24,22,28],  [188,206,178],[100,60,120] ],
+  // Obra de referencia 1 (prioritaria): crema, gris azulado, azul marino,
+  // bordó y azul acero. Muy pastel/mate, la más cercana al objetivo de calma.
+  // Se agrega dos veces (con una leve variación) para que tenga más chances
+  // de salir sorteada frente a las paletas más saturadas.
+  [ [229,218,192],[140,155,160],[35,55,70],  [110,35,35], [110,140,150] ],
+  [ [235,225,205],[150,163,168],[45,65,80],  [120,45,45], [120,150,158] ],
+  // Obra de referencia 2: celeste, marrón muy oscuro, rosa pálido, mostaza y verde.
+  [ [70,150,210], [35,25,20],   [230,190,200],[230,165,40],[40,110,60]  ],
 ];
 
 // Paleta de referencia por si el estado "suave" se activa sin que antes
-// haya habido ningún "grave" (para tener algo de qué partir). Son los
-// mismos tonos de la obra de referencia (violetas, celeste acero, negro,
-// verde menta, lavanda), en el orden que usa tint(): costados, fondoAzul,
-// fondoMarron, cuadrados, amarillos, circulo, fondo.
+// haya habido ningún "grave" (para tener algo de qué partir). Prioriza la
+// obra de referencia 1 (crema, gris azulado, azul marino, bordó, azul acero),
+// en el orden que usa tint(): costados, fondoAzul, fondoMarron, cuadrados,
+// amarillos, circulo, fondo.
 const PALETA_BASE_DEFAULT = [
-  [80,50,95],    // costados: violeta oscuro
-  [110,148,162], // fondoAzul: celeste acero
-  [24,22,28],    // fondoMarron: negro
-  [188,206,178], // cuadrados: verde menta pálido
-  [100,60,120],  // amarillos: violeta secundario
-  [140,168,182], // circulo: celeste acero claro
-  [210,215,222], // fondo: lavanda / blanco grisáceo
+  [35,55,70],    // costados: azul marino profundo
+  [110,140,150], // fondoAzul: azul acero (óvalo)
+  [110,35,35],   // fondoMarron: bordó oscuro
+  [229,218,192], // cuadrados: crema / hueso
+  [140,155,160], // amarillos: gris azulado
+  [240,232,210], // circulo: crema claro
+  [120,135,142], // fondo: gris azulado oscuro
 ];
 
 // Cuánto se desatura / aclara la paleta activa para el estado "suave"
