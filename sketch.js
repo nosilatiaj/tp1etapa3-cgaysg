@@ -28,7 +28,14 @@ let durSonido        = 0;
 let derivadaPico     = 0;
 let estadoActual     = 'ESTADO INICIAL';
 
-// Paletas con mayor contraste de matiz entre colores
+// ---------------------------------------------------------------------
+// Paleta base: siempre saturada y de alto contraste. Es la que se usa
+// para el estado "grave". El estado "suave" NUNCA elige una familia de
+// color distinta: parte de la paleta activa (o de esta base si todavía
+// no hubo ninguna) y genera versiones suavizadas (menos saturación,
+// más brillo) de esos mismos colores, para mantener siempre coherencia
+// cromática con la obra.
+// ---------------------------------------------------------------------
 const paletasGraves = [
   [ [180,20,20],  [20,100,40],  [20,20,150], [150,80,0],  [0,120,120]  ],
   [ [140,0,80],   [0,80,140],   [80,140,0],  [140,60,0],  [0,60,140]   ],
@@ -36,13 +43,22 @@ const paletasGraves = [
   [ [80,0,0],     [0,80,0],     [0,0,120],   [80,60,0],   [0,60,80]    ],
   [ [220,80,0],   [0,80,220],   [160,0,100], [0,160,80],  [80,0,160]   ],
 ];
-const paletasSuaves = [
-  [ [240,180,100],[100,180,240],[240,100,180],[180,240,100],[180,100,240] ],
-  [ [255,200,80], [80,200,255], [200,80,255], [80,255,200], [255,80,200] ],
-  [ [220,160,60], [60,160,220], [160,60,220], [60,220,160], [220,60,160] ],
-  [ [200,230,255],[255,230,200],[230,200,255],[255,200,230],[200,255,230] ],
-  [ [255,140,60], [60,140,255], [140,255,60], [255,60,140], [140,60,255] ],
+
+// Paleta de referencia por si el estado "suave" se activa sin que antes
+// haya habido ningún "grave" (para tener algo de qué partir).
+const PALETA_BASE_DEFAULT = [
+  [200,60,40],   // rojo teja
+  [40,90,150],   // azul
+  [210,150,60],  // ocre
+  [60,120,90],   // verde
+  [180,90,40],   // naranja tostado
+  [90,70,140],   // violeta apagado
+  [220,190,140], // amarillo arena
 ];
+
+// Cuánto se desatura / aclara la paleta activa para el estado "suave"
+const SUAVE_FACTOR_SATURACION = 0.42;
+const SUAVE_SUMA_BRILLO       = 18;
 
 let coloresActivos    = null;
 let coloresAnteriores = null;
@@ -50,6 +66,7 @@ let tipoSonido        = 'inicial';
 
 // Aleteo / escala / vibración
 let escala    = 1.0;
+let squeeze   = 1.0; // achicamiento horizontal relativo (efecto "plegado", solo lo usa el estado suave)
 let aleteo    = 0;
 let vibracion = 0;
 
@@ -67,18 +84,11 @@ let cuadObjetivo = Array.from({length:4}, ()=>({x:0,y:0}));
 let amarActuales = Array.from({length:4}, ()=>({x:0,y:0}));
 let amarObjetivo = Array.from({length:4}, ()=>({x:0,y:0}));
 
-// Escalas individuales por PNG (para suave)
+// Escalas individuales por PNG
 let cuadEscalaActual  = [1,1,1,1];
 let cuadEscalaObjetivo= [1,1,1,1];
 let amarEscalaActual  = [1,1,1,1];
 let amarEscalaObjetivo= [1,1,1,1];
-
-// Posiciones absolutas individuales (para suave independiente)
-let cuadPosAbsActual  = Array.from({length:4}, ()=>({x:0,y:0}));
-let cuadPosAbsObjetivo= Array.from({length:4}, ()=>({x:0,y:0}));
-let amarPosAbsActual  = Array.from({length:4}, ()=>({x:0,y:0}));
-let amarPosAbsObjetivo= Array.from({length:4}, ()=>({x:0,y:0}));
-let usarPosAbsSuave   = false;
 
 // Offsets individuales de fondos
 let fondoAzulObjGrave   = {x:0, y:0};
@@ -95,6 +105,10 @@ const DIRS_GRUPO = [
 ];
 
 let estadoAnterior = 'ESTADO INICIAL';
+
+// --- Panel de diagnóstico: visibilidad toggleable ---
+let mostrarPanel = true;
+const BOTON = { x: 12, y: 12, w: 26, h: 26 };
 
 function preload() {
   imgFondo    = loadImage('data/fondo.png');
@@ -156,11 +170,42 @@ function distanciaSeleccion(a, b) {
   return minDist;
 }
 
+// Convierte un color RGB en una versión "calma" del mismo color:
+// misma tonalidad (hue), pero menos saturado y más luminoso.
+// Así el estado suave nunca introduce una familia de color nueva o fría,
+// solo atenúa la que ya está activa.
+function suavizarColor(c, factorSaturacion = SUAVE_FACTOR_SATURACION, sumaBrillo = SUAVE_SUMA_BRILLO) {
+  push();
+  colorMode(RGB, 255);
+  let original = color(c[0], c[1], c[2]);
+  colorMode(HSB, 360, 100, 100);
+  let h = hue(original);
+  let s = saturation(original) * factorSaturacion;
+  let b = min(100, brightness(original) + sumaBrillo);
+  let suave = color(h, s, b);
+  colorMode(RGB, 255);
+  let resultado = [red(suave), green(suave), blue(suave)];
+  pop();
+  return resultado;
+}
+
 function seleccionarColores(tipo) {
   if (tipo === 'inicial') { coloresActivos = null; tipoSonido = 'inicial'; return; }
+
+  if (tipo === 'suave') {
+    // Partimos siempre de la paleta que ya estaba activa (o de una base de
+    // referencia si todavía no hubo ninguna) y generamos versiones más
+    // suaves de esos mismos colores. Nunca saltamos a una familia distinta.
+    let base = coloresActivos || coloresAnteriores || PALETA_BASE_DEFAULT;
+    coloresAnteriores = coloresActivos;
+    coloresActivos    = base.map(c => suavizarColor(c));
+    tipoSonido        = 'suave';
+    return;
+  }
+
+  // tipo === 'grave': paleta plena, saturada, de máximo contraste
   let pool = [];
-  let paletas = tipo === 'grave' ? paletasGraves : paletasSuaves;
-  for (let p of paletas) for (let c of p) pool.push(c);
+  for (let p of paletasGraves) for (let c of p) pool.push(c);
 
   let nueva; let intentos = 0;
   do {
@@ -174,12 +219,11 @@ function seleccionarColores(tipo) {
 
   coloresAnteriores = coloresActivos;
   coloresActivos    = nueva;
-  tipoSonido        = tipo;
+  tipoSonido        = 'grave';
 }
 
 function generarOffsetIndividuales(tipo) {
   if (tipo === 'grave') {
-    usarPosAbsSuave = false;
     // Rangos grandes (±80px) para dispersión visualmente evidente
     const cuadrantes = [
       { x:  1, y: -1 }, { x: -1, y: -1 },
@@ -210,40 +254,31 @@ function generarOffsetIndividuales(tipo) {
     fondoAzulObjGrave   = { x: random(-40, 40), y: random(-35, 35) };
     fondoMarronObjGrave = { x: random(-40, 40), y: random(-35, 35) };
 
-    // Escalas individuales vuelven a 1 en grave
     for (let i = 0; i < 4; i++) {
-      cuadEscalaObjetivo[i]  = 1;
-      amarEscalaObjetivo[i]  = 1;
+      cuadEscalaObjetivo[i] = 1;
+      amarEscalaObjetivo[i] = 1;
     }
 
   } else {
-    // Suave: posiciones absolutas completamente independientes por PNG
-    usarPosAbsSuave = true;
-    let cx = width  / 2;
-    let cy = height / 2;
-    let dispersión = 60; // distancia máxima desde el centro para cada PNG
-
+    // Suave: plegado leve y coherente, no dispersión.
+    // Cada pieza se desplaza apenas, en direcciones correlacionadas
+    // (como pliegues de alas), manteniendo el grupo unido y su escala
+    // relativa intacta — la contracción global la maneja `escala`/`squeeze`
+    // en draw().
+    const cuadrantes = [
+      { x:  1, y: -1 }, { x: -1, y: -1 },
+      { x: -1, y:  1 }, { x:  1, y:  1 },
+    ];
     for (let i = 0; i < 4; i++) {
-      // Cada PNG va a un lugar propio cerca del centro, con escala propia
-      cuadPosAbsObjetivo[i] = {
-        x: cx + random(-dispersión, dispersión) - width  * 0.22,
-        y: cy + random(-dispersión, dispersión) - height * 0.22,
-      };
-      amarPosAbsObjetivo[i] = {
-        x: cx + random(-dispersión, dispersión) - width  * 0.22,
-        y: cy + random(-dispersión, dispersión) - height * 0.22,
-      };
-      cuadEscalaObjetivo[i]  = random(0.35, 0.52);
-      amarEscalaObjetivo[i]  = random(0.35, 0.52);
+      let dir = cuadrantes[i];
+      let mag = random(8, 18); // desplazamiento pequeño y controlado
+      cuadObjetivo[i] = { x: dir.x * mag * 0.4, y: dir.y * mag };
+      amarObjetivo[i] = { x: dir.x * mag,       y: dir.y * mag * 0.4 };
+      cuadEscalaObjetivo[i] = 1;
+      amarEscalaObjetivo[i] = 1;
     }
-
-    // Offsets de bloque en suave se anulan (posición la da posAbsoluta)
-    for (let i = 0; i < 4; i++) {
-      cuadObjetivo[i]  = {x:0, y:0};
-      amarObjetivo[i]  = {x:0, y:0};
-    }
-    fondoAzulObjGrave   = { x: random(-10, 10), y: random(-10, 10) };
-    fondoMarronObjGrave = { x: random(-10, 10), y: random(-10, 10) };
+    fondoAzulObjGrave   = { x: random(-8, 8), y: random(-8, 8) };
+    fondoMarronObjGrave = { x: random(-8, 8), y: random(-8, 8) };
   }
 }
 
@@ -313,7 +348,6 @@ function draw() {
     generarOffsetIndividuales('suave');
   }
   if (cambioDesdeSuave || cambioDesdeGrave) {
-    usarPosAbsSuave = false;
     for (let i = 0; i < 4; i++) {
       cuadObjetivo[i]       = {x:0, y:0};
       amarObjetivo[i]       = {x:0, y:0};
@@ -344,15 +378,16 @@ function draw() {
   antesHabiaSonido = haySonido;
   estadoAnterior   = estadoActual;
 
-  // Transición de offsets
-  for (let i = 0; i < 5; i++) lerpOffset(offsetsActuales[i], offsetsObjetivo[i], 0.15);
+  // Transición de offsets: más lenta y suave durante el estado "suave",
+  // para que el plegado se sienta gradual y no un salto.
+  let tGrupo = estadoActual === 'SONIDO SUAVE DETECTADO' ? 0.06 : 0.15;
+  let tPieza = estadoActual === 'SONIDO SUAVE DETECTADO' ? 0.05 : 0.12;
+  for (let i = 0; i < 5; i++) lerpOffset(offsetsActuales[i], offsetsObjetivo[i], tGrupo);
   for (let i = 0; i < 4; i++) {
-    lerpOffset(cuadActuales[i],  cuadObjetivo[i],  0.12);
-    lerpOffset(amarActuales[i],  amarObjetivo[i],  0.12);
-    lerpOffset(cuadPosAbsActual[i],  cuadPosAbsObjetivo[i],  0.12);
-    lerpOffset(amarPosAbsActual[i],  amarPosAbsObjetivo[i],  0.12);
-    cuadEscalaActual[i]  = lerp(cuadEscalaActual[i],  cuadEscalaObjetivo[i],  0.10);
-    amarEscalaActual[i]  = lerp(amarEscalaActual[i],  amarEscalaObjetivo[i],  0.10);
+    lerpOffset(cuadActuales[i],  cuadObjetivo[i],  tPieza);
+    lerpOffset(amarActuales[i],  amarObjetivo[i],  tPieza);
+    cuadEscalaActual[i]  = lerp(cuadEscalaActual[i],  cuadEscalaObjetivo[i],  tPieza);
+    amarEscalaActual[i]  = lerp(amarEscalaActual[i],  amarEscalaObjetivo[i],  tPieza);
   }
   lerpOffset(fondoAzulActGrave,   fondoAzulObjGrave,   0.12);
   lerpOffset(fondoMarronActGrave, fondoMarronObjGrave, 0.12);
@@ -396,21 +431,33 @@ function draw() {
     }
 
     escala    = lerp(escala,    1.0, 0.05);
+    squeeze   = lerp(squeeze,   1.0, 0.05);
     vibracion = lerp(vibracion, 0,   0.15);
     for (let i = 0; i < 5; i++) {
       offsetsObjetivo[i].x = lerp(offsetsObjetivo[i].x, 0, 0.01);
       offsetsObjetivo[i].y = lerp(offsetsObjetivo[i].y, 0, 0.01);
     }
 
-    dibujarPanelDiagnostico();
+    dibujarUI();
     return;
   }
 
   // CAMINO B: con sonido
-  let escalaObj = 1.0;
-  if      (estadoActual === 'SONIDO GRAVE DETECTADO') escalaObj = 1.15;
-  else if (estadoActual === 'SONIDO SUAVE DETECTADO') escalaObj = 0.45; // contracción más extrema
-  escala = lerp(escala, escalaObj, 0.10);
+  let escalaObj  = 1.0;
+  let squeezeObj = 1.0;
+  if (estadoActual === 'SONIDO GRAVE DETECTADO') {
+    escalaObj  = 1.15;
+    squeezeObj = 1.0;
+  } else if (estadoActual === 'SONIDO SUAVE DETECTADO') {
+    // Contracción moderada y gradual, con un leve achicamiento horizontal
+    // extra (squeeze) que da sensación de plegado, como alas cerrándose,
+    // en vez de un colapso uniforme y brusco.
+    escalaObj  = 0.80;
+    squeezeObj = 0.55;
+  }
+  let tEscala = estadoActual === 'SONIDO SUAVE DETECTADO' ? 0.05 : 0.10;
+  escala  = lerp(escala,  escalaObj,  tEscala);
+  squeeze = lerp(squeeze, squeezeObj, tEscala);
 
   // Vibración solo SHHH
   if (estadoActual === 'SHHH DETECTADO') {
@@ -425,7 +472,7 @@ function draw() {
 
   let separacion = 0;
   if      (estadoActual === 'SONIDO GRAVE DETECTADO') separacion =  45;
-  else if (estadoActual === 'SONIDO SUAVE DETECTADO') separacion = -30;
+  else if (estadoActual === 'SONIDO SUAVE DETECTADO') separacion = -14; // acercamiento suave, no un choque
 
   // SHHH no usa paleta aunque exista una previa
   let usarColor = (estadoActual !== 'SHHH DETECTADO') && coloresActivos !== null;
@@ -450,7 +497,7 @@ function draw() {
   let eoy = (height - eh) / 2;
   for (let img of imgEsquinas) image(img, eox, eoy, ew, eh);
 
-  let cw2 = width  * escala;
+  let cw2 = width  * escala * squeeze;
   let ch2 = height * escala;
 
   for (let gi = 0; gi < 5; gi++) {
@@ -474,26 +521,13 @@ function draw() {
     } else if (gi === 2) {
       if (c) tint(c[3][0], c[3][1], c[3][2]); else noTint();
       for (let k = 0; k < 4; k++) {
-        if (usarPosAbsSuave) {
-          // Posición y escala completamente independientes por PNG en suave
-          let sw = width  * cuadEscalaActual[k];
-          let sh = height * cuadEscalaActual[k];
-          image(imgCuadrados[k], cuadPosAbsActual[k].x, cuadPosAbsActual[k].y, sw, sh);
-        } else {
-          image(imgCuadrados[k], bx + cuadActuales[k].x, by + cuadActuales[k].y, cw2, ch2);
-        }
+        image(imgCuadrados[k], bx + cuadActuales[k].x, by + cuadActuales[k].y, cw2, ch2);
       }
 
     } else if (gi === 3) {
       if (c) tint(c[4][0], c[4][1], c[4][2]); else noTint();
       for (let k = 0; k < 4; k++) {
-        if (usarPosAbsSuave) {
-          let sw = width  * amarEscalaActual[k];
-          let sh = height * amarEscalaActual[k];
-          image(imgAmarillos[k], amarPosAbsActual[k].x, amarPosAbsActual[k].y, sw, sh);
-        } else {
-          image(imgAmarillos[k], bx + amarActuales[k].x, by + amarActuales[k].y, cw2, ch2);
-        }
+        image(imgAmarillos[k], bx + amarActuales[k].x, by + amarActuales[k].y, cw2, ch2);
       }
 
     } else {
@@ -505,11 +539,24 @@ function draw() {
   }
 
   noTint();
-  dibujarPanelDiagnostico();
+  dibujarUI();
 }
 
-function dibujarPanelDiagnostico() {
-  let pw = 230, ph = 150, px = 12, py = 12;
+function dentroBoton(x, y) {
+  return x >= BOTON.x && x <= BOTON.x + BOTON.w &&
+         y >= BOTON.y && y <= BOTON.y + BOTON.h;
+}
+
+function dibujarUI() {
+  // Botón toggle: siempre visible, esté o no el panel abierto
+  noStroke(); fill(0,0,0,160); rect(BOTON.x, BOTON.y, BOTON.w, BOTON.h, 5);
+  fill(255); textFont('monospace'); textSize(14); textAlign(CENTER, CENTER);
+  text(mostrarPanel ? '–' : 'i', BOTON.x + BOTON.w/2, BOTON.y + BOTON.h/2);
+
+  if (!mostrarPanel) return;
+
+  let pw = 230, ph = 150;
+  let px = 12, py = BOTON.y + BOTON.h + 8;
   noStroke(); fill(0,0,0,140); rect(px, py, pw, ph, 6);
   fill(255); textFont('monospace'); textSize(12); textAlign(LEFT, TOP);
   let lh = 18, ty = py+10, tx = px+10;
@@ -537,8 +584,28 @@ async function iniciarAudio() {
   } catch (err) { console.error('Error al iniciar audio', err); }
 }
 
-function mousePressed() { iniciarAudio(); }
-function touchStarted()  { iniciarAudio(); return false; }
+function mousePressed() {
+  if (audioIniciado && dentroBoton(mouseX, mouseY)) {
+    mostrarPanel = !mostrarPanel;
+    return false;
+  }
+  iniciarAudio();
+}
+
+function touchStarted() {
+  if (audioIniciado && dentroBoton(mouseX, mouseY)) {
+    mostrarPanel = !mostrarPanel;
+    return false;
+  }
+  iniciarAudio();
+  return false;
+}
+
+function keyPressed() {
+  if (key === 'p' || key === 'P') {
+    mostrarPanel = !mostrarPanel;
+  }
+}
 
 function windowResized() {
   let h = min(windowHeight, 750);
