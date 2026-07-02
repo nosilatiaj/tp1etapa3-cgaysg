@@ -42,18 +42,24 @@ const paletasGraves = [
   [ [200,50,0],   [0,50,200],   [100,0,150], [0,150,100], [150,100,0]  ],
   [ [80,0,0],     [0,80,0],     [0,0,120],   [80,60,0],   [0,60,80]    ],
   [ [220,80,0],   [0,80,220],   [160,0,100], [0,160,80],  [80,0,160]   ],
+  // Paleta extraída de una obra de referencia de Pettoruti (violetas, celeste
+  // acero, negro y verde menta) — le da a veces autenticidad real al estado grave.
+  [ [80,50,95],   [110,148,162],[24,22,28],  [188,206,178],[100,60,120] ],
 ];
 
 // Paleta de referencia por si el estado "suave" se activa sin que antes
-// haya habido ningún "grave" (para tener algo de qué partir).
+// haya habido ningún "grave" (para tener algo de qué partir). Son los
+// mismos tonos de la obra de referencia (violetas, celeste acero, negro,
+// verde menta, lavanda), en el orden que usa tint(): costados, fondoAzul,
+// fondoMarron, cuadrados, amarillos, circulo, fondo.
 const PALETA_BASE_DEFAULT = [
-  [200,60,40],   // rojo teja
-  [40,90,150],   // azul
-  [210,150,60],  // ocre
-  [60,120,90],   // verde
-  [180,90,40],   // naranja tostado
-  [90,70,140],   // violeta apagado
-  [220,190,140], // amarillo arena
+  [80,50,95],    // costados: violeta oscuro
+  [110,148,162], // fondoAzul: celeste acero
+  [24,22,28],    // fondoMarron: negro
+  [188,206,178], // cuadrados: verde menta pálido
+  [100,60,120],  // amarillos: violeta secundario
+  [140,168,182], // circulo: celeste acero claro
+  [210,215,222], // fondo: lavanda / blanco grisáceo
 ];
 
 // Cuánto se desatura / aclara la paleta activa para el estado "suave"
